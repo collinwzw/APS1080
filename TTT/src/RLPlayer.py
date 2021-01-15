@@ -5,13 +5,21 @@ import copy
 class RLPlayer(Player):
     valueFunctionTable = {}
 
-    def __init__(self, symbol, index, increment):
+    def __init__(self, symbol, index, increment, filename, load=True):
         self.playerSymbol = symbol
         self.index = index;
         self.increment = increment
-        self.__initValueFunctionTable()
+        if load == True:
+            self.loadValueFunctionTable(filename)
+        else:
+            self.__initValueFunctionTable()
+            self.outputValueFunctionTable(filename)
 
     def __initValueFunctionTable(self):
+        '''
+        initiate the value function table by using actual board and two fake player
+        :return:
+        '''
         board = Board()
         player1 = Player("X", 1, 1)
         player2 = Player("O", 2, -1)
@@ -78,9 +86,27 @@ class RLPlayer(Player):
 
                 self.__getState(currentBoard,player1,player2,(flip + 1)%2) #recurrension call
 
+    def outputValueFunctionTable(self, filename):
+        # output value function table to file
+        f = open(filename, "w")
+        for key in self.valueFunctionTable.keys():
+            f.write(key + ':' + str(self.valueFunctionTable.get(key)) + '\n')
+        f.close()
+
+    def loadValueFunctionTable(self, filename):
+        '''
+        load the value function table from file
+        :return:
+        '''
+        f = open(filename, "r")
+        for line in f.readlines():
+            split = line.split(':')
+            self.valueFunctionTable[split[0]] = float(split[1].split("\n")[0])
+        f.close()
+
     def test(self):
         print("success")
 
 
-rlplayer = RLPlayer("O", 2, -1)
+rlplayer = RLPlayer("O", 2, -1,"valueFunctionTable.txt", load=True)
 rlplayer.test()
