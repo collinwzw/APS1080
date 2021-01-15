@@ -38,6 +38,13 @@ class Board:
                     print('|', end='')
         print("")
 
+    def getBoard(self):
+        '''
+        method to get 2D array format of board
+        :return: 2D array
+        '''
+        return self.__borad
+
     def set(self, player, row, col ):
         '''
         This function set the board with given input data
