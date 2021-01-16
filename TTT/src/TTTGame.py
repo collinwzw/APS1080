@@ -79,6 +79,7 @@ class Game:
             if self.board.isDraw():
                 self.board.printBoard()
                 print("The game is draw")
+
                 self.player2.outputValueFunctionTable("valueFunctionTable.txt")
                 break;
 
@@ -87,11 +88,50 @@ class Game:
 
             flip = (flip + 1)%2
 
+    def playTwoRLPlayer(self):
+        #self.player1 = RLPlayer("X", 1, 1,"valueFunctionTable1.txt",load=False, opposite=True)
+        self.player1 = RLPlayer("X", 1, 1, "valueFunctionTable1.txt", load=True)
+        self.player2 = RLPlayer("O", 2, -1,"valueFunctionTable.txt", load=True)
+        flip = 1;
+        while 1:
+            if flip == 1:
+                move = self.player1.decideMove(self.board)
+                self.board.set(self.player1, move[0], move[1])
+                if self.board.isWin(self.player1, move[0], move[1]):
+                    self.board.printBoard()
+                    previousBoard = self.board.clone()
+                    previousBoard.getBoard()[move[0]][move[1]] = ' '
+                    self.player2.updateValueFunctionTable(previousBoard, self.board)
+                    self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                    self.player1.outputValueFunctionTable("valueFunctionTable1.txt")
+                    print("player 1 win")
+                    break;
 
-    #def trainRLPlayer(self):
+            else:
+                move = self.player2.decideMove(self.board)
+                self.board.set(self.player2, move[0], move[1])
 
+                if self.board.isWin(self.player2,move[0],move[1]):
+                    self.board.printBoard()
+                    print("player 2 win")
+                    previousBoard = self.board.clone()
+                    previousBoard.getBoard()[move[0]][move[1]] = ' '
+                    self.player1.updateValueFunctionTable(previousBoard, self.board)
+                    self.player1.outputValueFunctionTable("valueFunctionTable1.txt")
+                    self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                    break;
+
+            if self.board.isDraw():
+                self.board.printBoard()
+                print("The game is draw")
+                self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                break;
+
+            self.board.printBoard()
+            flip = (flip + 1)%2
 
 
 g = Game()
 #g.playTwoHuman()
-g.playRLPlayer()
+#g.playRLPlayer()
+g.playTwoRLPlayer()

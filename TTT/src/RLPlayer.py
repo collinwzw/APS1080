@@ -5,25 +5,27 @@ from TTT.src.TTTBoard import Board
 class RLPlayer(Player):
     valueFunctionTable = {}
     step = 0.1
-    def __init__(self, symbol, index, increment, filename, load=True):
+    def __init__(self, symbol, index, increment, filename, load=True, opposite = False):
         self.playerSymbol = symbol
         self.index = index;
         self.increment = increment
         if load == True:
             self.loadValueFunctionTable(filename)
         else:
-            self.__initValueFunctionTable()
+            self.__initValueFunctionTable(opposite)
             self.outputValueFunctionTable(filename)
 
-    def __initValueFunctionTable(self):
+    def __initValueFunctionTable(self, opposite):
         '''
         initiate the value function table by using actual board and two fake player
         :return:
         '''
         board = Board()
+        self.valueFunctionTable[self.__getBoardInfo(board)] = 0.5
+
         player1 = Player("X", 1, 1)
         player2 = Player("O", 2, -1)
-        self.__getState(board,player1,player2,1)
+        self.__getState(board,player1,player2,1, opposite)
 
     def __getAvailableMove(self, board):
         '''
@@ -47,7 +49,7 @@ class RLPlayer(Player):
         return board.getBoard().__str__()
 
 
-    def __getState(self, board, player1, player2, flip):
+    def __getState(self, board, player1, player2, flip, opposite):
         '''
         This method using back tracking to compute all the possible states for the value function table and record down the value
         If opponent win, value is 0
@@ -74,18 +76,24 @@ class RLPlayer(Player):
                 if currentBoard.isWin(currentPlayer, move[0], move[1]):
                     if flip == 1:
                         # opponent win
-                        self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 0
+                        if opposite:
+                            self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 1
+                        else:
+                            self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 0
                         return
                     else:
                         # we win
-                        self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 1
+                        if opposite:
+                            self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 0
+                        else:
+                            self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 1
                         return
                 self.valueFunctionTable[self.__getBoardInfo(currentBoard)] = 0.5
 
                 if currentBoard.isDraw() == True:
                     return
 
-                self.__getState(currentBoard,player1,player2,(flip + 1)%2) #recurrension call
+                self.__getState(currentBoard,player1,player2,(flip + 1)%2, opposite) #recurrension call
 
     def outputValueFunctionTable(self, filename):
         # output value function table to file
