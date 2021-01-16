@@ -1,6 +1,7 @@
 # 1. Create a python class maintains the TTT board. It should have a reset method (to clear the TTT board),
 # methods for setting the position of the board for each player, and a method to indicate whether the game has
 # been won (returning who has won), or whether the game is at a draw.
+import copy
 
 
 class Board:
@@ -72,6 +73,9 @@ class Board:
         self.__forwardDiagonalCount = 0
         self.__backwardDiagonalCount = 0
 
+    def clone(self):
+        return copy.deepcopy(self)
+
     def isWin(self,player, row,col):
         '''
         check if the one of the player win the game or not with constant time
@@ -91,7 +95,7 @@ class Board:
             if self.__forwardDiagonalCount == 3 or self.__forwardDiagonalCount == -3:
                 return True
 
-        if (row == col and col == 2) or row - col == 2 or col - row == 2 :
+        if (row == col and col == 1) or row - col == 2 or col - row == 2 :
             self.__backwardDiagonalCount = self.__backwardDiagonalCount + player.increment
             if self.__backwardDiagonalCount == 3 or self.__backwardDiagonalCount == -3:
                 return True

@@ -1,10 +1,10 @@
 from TTT.src.Player import Player
 from TTT.src.TTTBoard import Board
-import copy
+
 
 class RLPlayer(Player):
     valueFunctionTable = {}
-
+    step = 0.1
     def __init__(self, symbol, index, increment, filename, load=True):
         self.playerSymbol = symbol
         self.index = index;
@@ -46,6 +46,7 @@ class RLPlayer(Player):
         '''
         return board.getBoard().__str__()
 
+
     def __getState(self, board, player1, player2, flip):
         '''
         This method using back tracking to compute all the possible states for the value function table and record down the value
@@ -65,7 +66,7 @@ class RLPlayer(Player):
             currentPlayer = player2
 
         for move in availableMove:
-            currentBoard = copy.deepcopy(board)
+            currentBoard = board.clone()
 
             currentBoard.set(currentPlayer, move[0], move[1])
 
@@ -104,9 +105,37 @@ class RLPlayer(Player):
             self.valueFunctionTable[split[0]] = float(split[1].split("\n")[0])
         f.close()
 
+    def updateValueFunctionTable(self, previousBoard, currentBoard):
+        '''
+        update the value function table
+        :param previousBoard:
+        :param currentBoard:
+        :return:
+        '''
+        self.valueFunctionTable[self.__getBoardInfo(previousBoard)] = self.valueFunctionTable[self.__getBoardInfo(previousBoard)] + \
+                                                              self.step * (self.valueFunctionTable.get(
+            self.__getBoardInfo(currentBoard)) - self.valueFunctionTable.get(self.__getBoardInfo(previousBoard)))
+
+    def decideMove(self, board):
+        '''
+        This method takes the board and try to make the move that has max possibility to win the game
+        Also, it updates the value function table with pre defined step
+        :param board:
+        :return:
+        '''
+        availableMove = self.__getAvailableMove(board)
+        max = -1
+        move = None;
+        for currentMove in availableMove:
+            currentBoard = board.clone()
+            currentBoard.set(self, currentMove[0], currentMove[1])
+            if max < self.valueFunctionTable.get(self.__getBoardInfo(currentBoard)):
+                max = self.valueFunctionTable.get(self.__getBoardInfo(currentBoard))
+                move = currentMove
+        self.updateValueFunctionTable(board, currentBoard)
+        return move
+
     def test(self):
         print("success")
 
 
-rlplayer = RLPlayer("O", 2, -1,"valueFunctionTable.txt", load=True)
-rlplayer.test()
