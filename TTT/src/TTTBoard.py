@@ -72,6 +72,7 @@ class Board:
         self.__colCount = [0  for row in range(self.__boardsize)]
         self.__forwardDiagonalCount = 0
         self.__backwardDiagonalCount = 0
+        self.__count = 0
 
     def clone(self):
         return copy.deepcopy(self)

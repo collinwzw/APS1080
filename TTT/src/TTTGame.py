@@ -1,6 +1,8 @@
 from TTT.src.Player import Player
 from TTT.src.RLPlayer import RLPlayer
 from TTT.src.TTTBoard import Board
+from random import randrange
+
 class Game:
     player1 = None;
     player2 = None;
@@ -130,8 +132,54 @@ class Game:
             self.board.printBoard()
             flip = (flip + 1)%2
 
+    def trainRLPlauer(self):
+        self.player1 = Player("X", 1, 1)
+        self.player2 = RLPlayer("O", 2, -1,"valueFunctionTable.txt", load=True)
+        flip = 1;
+        while 1:
+            if flip == 1:
+                availableMove = []
+                for row in range(3):
+                    for col in range(3):
+                        if self.board.getBoard()[row][col] == ' ':
+                            availableMove.append([row, col])
+                move = availableMove[randrange(len(availableMove))]
+                self.board.set(self.player1, move[0], move[1])
+                if self.board.isWin(self.player1,move[0], move[1]):
+                    self.board.printBoard()
+                    print("random player win the game")
+                    previousBoard = self.board.clone()
+                    previousBoard.getBoard()[move[0]][move[1]] = ' '
+                    self.player2.updateValueFunctionTable(previousBoard, self.board)
+                    self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                    self.board.resetBoard()
+                    flip = 0;
+            else:
+                move = self.player2.decideMove(self.board)
+                self.board.set(self.player2, move[0], move[1])
+
+                if self.board.isWin(self.player2,move[0],move[1]):
+                    self.board.printBoard()
+                    print("Computer win the game")
+                    self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                    self.board.resetBoard()
+                    flip = 0;
+            if self.board.isDraw():
+                self.board.printBoard()
+                print("The game is draw")
+
+                self.player2.outputValueFunctionTable("valueFunctionTable.txt")
+                self.board.resetBoard()
+                flip = 0;
+
+            self.board.printBoard()
+
+
+            flip = (flip + 1)%2
+
 
 g = Game()
 #g.playTwoHuman()
 #g.playRLPlayer()
-g.playTwoRLPlayer()
+#g.playTwoRLPlayer()
+g.trainRLPlauer()
