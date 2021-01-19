@@ -132,10 +132,14 @@ class Game:
             self.board.printBoard()
             flip = (flip + 1)%2
 
-    def trainRLPlauer(self):
+    def trainRLPlauer(self, numberOfGames):
         self.player1 = Player("X", 1, 1)
         self.player2 = RLPlayer("O", 2, -1,"valueFunctionTable.txt", load=True)
         flip = 1;
+        draw = 0
+        randomWin = 0
+        rLWin = 0
+
         while 1:
             if flip == 1:
                 availableMove = []
@@ -146,33 +150,41 @@ class Game:
                 move = availableMove[randrange(len(availableMove))]
                 self.board.set(self.player1, move[0], move[1])
                 if self.board.isWin(self.player1,move[0], move[1]):
-                    self.board.printBoard()
+                    #self.board.printBoard()
                     print("random player win the game")
                     previousBoard = self.board.clone()
                     previousBoard.getBoard()[move[0]][move[1]] = ' '
                     self.player2.updateValueFunctionTable(previousBoard, self.board)
                     self.player2.outputValueFunctionTable("valueFunctionTable.txt")
                     self.board.resetBoard()
+                    randomWin = randomWin + 1
+                    print("total game played = " + str(draw + randomWin + rLWin) + "， random player wins " + str(randomWin) + ", computer wins " +str(rLWin) + ", and draw " + str(draw) + "games" )
+                    if draw + randomWin + rLWin >= numberOfGames: break;
                     flip = 0;
             else:
                 move = self.player2.decideMove(self.board)
                 self.board.set(self.player2, move[0], move[1])
 
                 if self.board.isWin(self.player2,move[0],move[1]):
-                    self.board.printBoard()
+                    #self.board.printBoard()
                     print("Computer win the game")
                     self.player2.outputValueFunctionTable("valueFunctionTable.txt")
                     self.board.resetBoard()
+                    rLWin = rLWin + 1
+                    print("total game played = " + str(draw + randomWin + rLWin) + "， random player wins " + str(randomWin) + ", computer wins " +str(rLWin) + ", and draw " + str(draw) + "games" )
+                    if draw + randomWin + rLWin  >= numberOfGames: break;
                     flip = 0;
             if self.board.isDraw():
-                self.board.printBoard()
+                #self.board.printBoard()
                 print("The game is draw")
 
                 self.player2.outputValueFunctionTable("valueFunctionTable.txt")
                 self.board.resetBoard()
                 flip = 0;
-
-            self.board.printBoard()
+                draw = draw + 1
+                print("total game played = " + str(draw + randomWin + rLWin) + "， random player wins " + str(randomWin) + ", computer wins " +str(rLWin) + ", and draw " + str(draw) + "games" )
+                if draw + randomWin + rLWin  >= numberOfGames: break;
+            #self.board.printBoard()
 
 
             flip = (flip + 1)%2
@@ -182,4 +194,4 @@ g = Game()
 #g.playTwoHuman()
 #g.playRLPlayer()
 #g.playTwoRLPlayer()
-g.trainRLPlauer()
+g.trainRLPlauer(50000)
