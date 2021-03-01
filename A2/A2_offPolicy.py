@@ -1,7 +1,6 @@
+#offpolicy
 import numpy as np
 import gym
-import scipy
-import scipy.signal
 import matplotlib.pyplot as plt
 from functools import partial
 
@@ -46,6 +45,15 @@ def observationToState(num_states, lower_bounds, upper_bounds, obs):
 
     return np.ravel_multi_index(state_idx, num_states)
 
+def GreedyPolicy(Q, state):
+
+    max_val = Q[state, :].max()
+    max_indices = np.where(np.abs(Q[state, :] - max_val) < 1e-5)[0]
+    rand_idx = np.random.randint(len(max_indices))
+    max_action = max_indices[rand_idx]
+
+    return max_action
+
 
 
 def EpsilonGreedyPolicy(Q, eps, state):
@@ -65,16 +73,29 @@ def EpsilonGreedyPolicy(Q, eps, state):
 
 # Initialize policy
 def initPi(Q, eps):
-    pi = partial(EpsilonGreedyPolicy, Q, eps)
+    pi = partial(GreedyPolicy, Q, eps)
     return pi
 
-def UpdatePi(Q, eps):
-    pi = partial(EpsilonGreedyPolicy, Q, eps)
+# Initialize policy
+def initB(Q, eps):
+    b = partial(EpsilonGreedyPolicy, Q, eps)
+    return b
+
+def updatePi(Q):
+    pi = partial(GreedyPolicy, Q)
     return pi
+
+def updateB(Q, eps):
+    b = partial(EpsilonGreedyPolicy, Q, eps)
+    return b
 
 def initQ(stateLength, numberOfActions):
     Q = np.zeros((stateLength, numberOfActions))
     return Q
+
+def initC(stateLength, numberOfActions):
+    C = np.zeros((stateLength, numberOfActions))
+    return C
 
 def initReturns(stateLength, numberOfActions):
     returns = {}
@@ -122,45 +143,53 @@ upperBounds = [2.4, 9999, 0.21, 9999]
 stateMapping = partial(observationToState, numberOfStates, lowerBounds, upperBounds)
 stateLength = np.prod(np.array(numberOfStates))
 Q = initQ(stateLength, numberOfActions)
-returns = initReturns(stateLength, numberOfActions)
-policy = initPi(Q, eps)
+C = initC(stateLength, numberOfActions)
+targetPolicy = initPi(Q, eps)
 rewardList = []
 avg = 0
+behaviorPolicy = initB(Q, eps)
 for i in range(20000):
+    behaviorPolicy = updateB(Q,eps)
     if i%100 == 0 and i != 0:
         print("i = " + str(i) + ", and average reward over past 100 episode " + str(avg/ 100))
         avg = 0
-        states, actions, rewards = play(env, policy, stateMapping, False)
+        states, actions, rewards = play(env, behaviorPolicy, stateMapping, False)
     else:
-        states, actions, rewards = play(env, policy,stateMapping,False)
+        states, actions, rewards = play(env, behaviorPolicy,stateMapping,False)
 
-    seen = set()
     G = 0
+    W = 1
     for i, (state, action, reward) in enumerate(zip(reversed(states), reversed(actions), reversed(rewards))):
         if i == 0:
             G = G * gamma
         else:
             G = G * gamma + rewards[i - 1]
-        if state in seen:
-            continue
 
-        seen.add(state)
-        returns[state,action].append(G)
+        C[state, action] += W
+        Q[state, action] += (W/C[state, action]) * (G - Q[state, action])
+        targetPolicy = updatePi(Q)
+        if action != targetPolicy(state) :
+            break;
 
-        Q[state, action] = sum(returns[state,action])/ len(returns[state,action])
-        policy = UpdatePi(Q,eps)
+        if targetPolicy(state) == action:
+            # selected greedy action
+            prob = 1 - eps
+        else:
+            prob = eps/numberOfActions
+        W *= 1/prob
+
     avg += sum(rewards)
     rewardList.append(sum(rewards))
 plt.plot(rewardList)
 plt.show()
-eps = 0
-policy = UpdatePi(Q, eps)
+
+
+policy = updatePi(Q)
 avg = 0
 for i in range(100):
     states, actions, rewards = play(env, policy, stateMapping, False)
     avg += sum(rewards)
-print(avg)
-play(env, policy,stateMapping, True)
+print(avg/100)
 
 
 

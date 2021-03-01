@@ -95,7 +95,7 @@ for i in range(50000):
 
     #calculate Q
     seen = set()
-    for state, action, G in state_action_return:
+    for state, action, G in reversed(state_action_return):
         stateActionPair = (tuple(state),action)
         if stateActionPair not in seen:
            R[stateActionPair].append(G)
