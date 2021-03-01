@@ -111,7 +111,7 @@ def play(env, policy,stateMapping, display):
         #print(totalRewards)
     return states, actions, rewards
 
-env = gym.make('CartPole-v1')
+env = gym.make('CartPole-v0')
 
 eps = 0.05
 gamma = 1

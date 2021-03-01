@@ -1,229 +1,130 @@
-import numpy as np
 import gym
-import scipy
-import scipy.signal
+import numpy as np
 import matplotlib.pyplot as plt
-from functools import partial
+
+env = gym.make('CartPole-v0')
+
+MAXSTATES = 10 ** 4
+GAMMA = 0.9
+ALPHA = 0.01
 
 
-# Simple Tabular Monte Carlo Control with Epsilon Greedy policy
-# as described very closely in Chapter 5 in
-#
-# Sutton, R., & Barto, A. (1998). Reinforcement learning, an introduction.
-# Cambridge: MIT Press/Bradford Books.
-
-def TabularEpsilonGreedyPolicy(Q, eps, state):
-    sample = np.random.random_sample()
-
-    num_actions = Q.shape[1]
-
-    if sample > eps:
-        max_val = Q[state, :].max()
-        max_indices = np.where(np.abs(Q[state, :] - max_val) < 1e-5)[0]
-        rand_idx = np.random.randint(len(max_indices))
-        max_action = max_indices[rand_idx]
-
-        return max_action
-    else:
-        return np.random.randint(num_actions)
+def max_dict(d):
+    max_v = float('-inf')
+    for key, val in d.items():
+        if val > max_v:
+            max_v = val
+            max_key = key
+    return max_key, max_v
 
 
-def discretize_val(val, min_val, max_val, num_states):
-    """
-	Discretizes a single float
-	if val < min_val, it gets a discrete value of 0
-	if val >= max_val, it gets a discrete value of num_states-1
+def create_bins():
+    # obs[0] -> cart position --- -4.8 - 4.8
+    # obs[1] -> cart velocity --- -inf - inf
+    # obs[2] -> pole angle    --- -41.8 - 41.8
+    # obs[3] -> pole velocity --- -inf - inf
 
-	Args:
-	    val (float): value to discretize
-	    min_val (float): lower bound of discretization
-	    max_val (float): upper bound of discretization
-	    num_states (int): number of discrete states
+    bins = np.zeros((4, 10))
+    bins[0] = np.linspace(-4.8, 4.8, 10)
+    bins[1] = np.linspace(-5, 5, 10)
+    bins[2] = np.linspace(-.418, .418, 10)
+    bins[3] = np.linspace(-5, 5, 10)
 
-	Returns:
-	    float: discrete value
-	"""
-    state = int(num_states * (val - min_val) / (max_val - min_val))
-    if state >= num_states:
-        state = num_states - 1
-    if state < 0:
-        state = 0
+    return bins
+
+
+def assign_bins(observation, bins):
+    state = np.zeros(4)
+    for i in range(4):
+        state[i] = np.digitize(observation[i], bins[i])
     return state
 
 
-def obs_to_state(num_states, lower_bounds, upper_bounds, obs):
-    """
-	Turns an observation in R^N, into a discrete state
-
-	Args:
-	    num_states (list): list of number of states for each dimension of observation
-	    lower_bounds (list): list of lowerbounds for discretization
-	    upper_bounds (list): list of upperbounds for discretization
-	    obs (list): observation in R^N to discretize
-
-	Returns:
-	    int: discrete state
-	"""
-    state_idx = []
-    for ob, lower, upper, num in zip(obs, lower_bounds, upper_bounds, num_states):
-        state_idx.append(discretize_val(ob, lower, upper, num))
-
-    return np.ravel_multi_index(state_idx, num_states)
+def get_state_as_string(state):
+    string_state = ''.join(str(int(e)) for e in state)
+    return string_state
 
 
-def get_discounted_rewards(rewards, gamma):
-    """
-	Gets Discounted rewards at every timestep
-
-	Args:
-	    rewards (numpy array): a list of [r_1, r_2, ...]
-	    where r_i = r(x_i, u_i)
-	    gamma (float): discount factor
-
-	Returns:
-	    numpy array: a list of [R_1, R_2, ...]
-	    where R_i = \sum_{n=i} r_n * gamma^{n-i}
-	"""
-    return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
-
-
-def rollout(env, policy, get_state, max_iter=10000, render=False):
-    """
-	Simulates one episode of the environment following a policy
-
-	Args:
-	    env (TYPE): openai gym env
-	    policy (function): function that takes in state and returns an action
-	    get_state (TYPE): function to get state from observation
-	    max_iter (int, optional): maximum number of iterations to simulate
-	    render (bool, optional): True if you want to render the environment
-
-	Returns:
-	    TYPE: Description
-	"""
-    obs = env.reset()
-    rewards = []
-    actions = []
+def get_all_states_as_string():
     states = []
-    for _ in range(max_iter):
-        state = get_state(obs)
-        action = policy(state)
-
-        actions.append(action)
-        states.append(state)
-
-        if (render):
-            env.render()
-            time.sleep(0.01)
-        [obs, reward, done, info] = env.step(action)
-        rewards.append(reward)
-
-        if done:
-            break
-
-    return [states, actions, rewards]
+    for i in range(MAXSTATES):
+        states.append(str(i).zfill(4))
+    return states
 
 
-# tabular monte carlo
-class TabularMC(object):
-    def __init__(self, num_states, num_actions, gamma=1, eps=0.1, eps_decay=0.9999, first_visit=True):
-        self.num_states = num_states
-        self.num_actions = num_actions
-        self.first_visit = first_visit
+def initialize_Q():
+    Q = {}
 
-        self.gamma = gamma
-        self.start_eps = eps
-        self.eps_decay = eps_decay
+    all_states = get_all_states_as_string()
+    for state in all_states:
+        Q[state] = {}
+        for action in range(env.action_space.n):
+            Q[state][action] = 0
+    return Q
 
-        self.reset_policy()
 
-    def reset_policy(self):
-        self.Q = np.zeros((self.num_states, self.num_actions))
-        self.Q_num = np.zeros((self.num_states, self.num_actions))
-        self.visited_num = np.zeros((self.num_states, self.num_actions))
-        self.eps = self.start_eps
+def play_one_game(bins, Q, eps=0.5):
+    observation = env.reset()
+    done = False
+    cnt = 0  # number of moves in an episode
+    state = get_state_as_string(assign_bins(observation, bins))
+    total_reward = 0
 
-    def curr_policy(self, copy=False):
-        if copy:
-            return partial(TabularEpsilonGreedyPolicy, np.copy(self.Q), self.eps)
+    while not done:
+        cnt += 1
+        # np.random.randn() seems to yield a random action 50% of the time ?
+        if np.random.uniform() < eps:
+            act = env.action_space.sample()  # epsilon greedy
         else:
-            return partial(TabularEpsilonGreedyPolicy, self.Q, self.eps)
+            act = max_dict(Q[state])[0]
 
-    def update(self, env, get_state):
-        policy = self.curr_policy()
-        [states, actions, rewards] = rollout(env, policy, get_state)
+        observation, reward, done, _ = env.step(act)
 
-        updated_states = set()
+        total_reward += reward
 
-        discounted_rewards = get_discounted_rewards(np.array(rewards), self.gamma)
-        for state, action, disc_rew in zip(states, actions, discounted_rewards):
+        if done and cnt < 200:
+            reward = -300
 
-            if self.first_visit:
-                if state in updated_states:
-                    continue
+        state_new = get_state_as_string(assign_bins(observation, bins))
 
-                updated_states.add(state)
+        a1, max_q_s1a1 = max_dict(Q[state_new])
+        Q[state][act] += ALPHA * (reward + GAMMA * max_q_s1a1 - Q[state][act])
+        state, act = state_new, a1
 
-            # incremental averaging
-            self.Q_num[state, action] += 1
-            self.Q[state, action] += (disc_rew - self.Q[state, action]) / self.Q_num[state, action]
-            self.visited_num[state, action] += 1
-
-        self.eps *= self.eps_decay
-
-        return np.sum(np.array(rewards))
+    return total_reward, cnt
 
 
-if __name__ == '__main__':
-    class RunningAverage(object):
-        def __init__(self, N):
-            self.N = N
-            self.vals = []
-            self.num_filled = 0
+def play_many_games(bins, N=10000):
+    Q = initialize_Q()
 
-        def push(self, val):
-            if self.num_filled == self.N:
-                self.vals.pop(0)
-                self.vals.append(val)
-            else:
-                self.vals.append(val)
-                self.num_filled += 1
+    length = []
+    reward = []
+    for n in range(N):
+        # eps=0.5/(1+n*10e-3)
+        eps = 1.0 / np.sqrt(n + 1)
 
-        def get(self):
-            return float(sum(self.vals)) / self.num_filled
+        episode_reward, episode_length = play_one_game(bins, Q, eps)
+
+        if n % 100 == 0:
+            print(n, '%.4f' % eps, episode_reward)
+        length.append(episode_length)
+        reward.append(episode_reward)
+
+    return length, reward
 
 
-    env = gym.make('CartPole-v0')
-    env = gym.wrappers.Monitor(env, '/tmp/cartpole', force=True)
-    num_actions = env.action_space.n
-    num_states = [64, 8, 64, 8]
-    lower_bounds = [-4.8, -9999, -0.418, -9999]
-    upper_bounds = [4.8, 9999, 0.418, 9999]
-
-    get_state = partial(obs_to_state, num_states, lower_bounds, upper_bounds)
-
-    state_len = np.prod(np.array(num_states))
-    mc = TabularMC(state_len, num_actions, first_visit=False, eps_decay=0.99)
-
-    num_episodes = 2000
-
-    rewards = np.zeros(num_episodes)
-    #avg_calc = RunningAverage(100)
-    for i in range(num_episodes):
-        total_reward = mc.update(env, get_state)
-        #avg_calc.push(total_reward)
-
-        rewards[i] = total_reward
-        print("Iteration " + str(i) + " reward: " + str(total_reward))
-
-    env.close()
-
-    plt.plot(rewards)
-
-    plt.title('rewards over episodes')
-    plt.xlabel('episodes')
-    plt.ylabel('reward')
-
+def plot_running_avg(totalrewards):
+    N = len(totalrewards)
+    running_avg = np.empty(N)
+    for t in range(N):
+        running_avg[t] = np.mean(totalrewards[max(0, t - 100):(t + 1)])
+    plt.plot(running_avg)
+    plt.title("Running Average")
     plt.show()
 
 
+if __name__ == '__main__':
+    bins = create_bins()
+    episode_lengths, episode_rewards = play_many_games(bins)
+
+    plot_running_avg(episode_rewards)
