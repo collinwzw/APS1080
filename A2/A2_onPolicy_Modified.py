@@ -168,6 +168,14 @@ def plot_running_avg(totalrewards):
     plt.title("Running Average")
     plt.show()
 
+def plot_running_avg(totalrewards):
+    N = len(totalrewards)
+    running_avg = np.empty(N)
+    for t in range(N):
+        running_avg[t] = np.mean(totalrewards[max(0, t - 100):(t + 1)])
+    plt.plot(running_avg)
+    plt.title("Running Average")
+    plt.show()
 
 if __name__ == '__main__':
 
@@ -196,7 +204,7 @@ if __name__ == '__main__':
         G = 0
         for i, (state, action, reward) in enumerate(zip(reversed(states), reversed(actions), reversed(rewards))):
 
-            G = G * gamma + rewards[i - 1]
+            G = G * gamma + reward
             if (state,action) in seen:
                 continue
 
@@ -214,7 +222,7 @@ if __name__ == '__main__':
         rewardList.append(sum(rewards))
 
 
-    plt.plot(episode_rewards)
+    plot_running_avg(episode_rewards)
     plt.show()
     eps = 0
 
