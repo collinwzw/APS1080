@@ -85,36 +85,6 @@ def initReturns():
             returns[state][action] = []
     return returns
 
-def play_one_game(bins, Q, eps=0.5):
-    observation = env.reset()
-    done = False
-    cnt = 0  # number of moves in an episode
-    state = get_state_as_string(assign_bins(observation, bins))
-    total_reward = 0
-
-    while not done:
-        cnt += 1
-        # np.random.randn() seems to yield a random action 50% of the time ?
-        if np.random.uniform() < eps:
-            act = env.action_space.sample()  # epsilon greedy
-        else:
-            act = max_dict(Q[state])[0]
-
-        observation, reward, done, _ = env.step(act)
-
-        total_reward += reward
-
-        if done and cnt < 200:
-            reward = -300
-
-        state_new = get_state_as_string(assign_bins(observation, bins))
-
-        a1, max_q_s1a1 = max_dict(Q[state_new])
-        Q[state][act] += ALPHA * (reward + GAMMA * max_q_s1a1 - Q[state][act])
-        state, act = state_new, a1
-
-    return total_reward, cnt
-
 def play(env, policy,bins, display):
     obs = env.reset()
     # prev_screen = env.render(mode='rgb_array')
