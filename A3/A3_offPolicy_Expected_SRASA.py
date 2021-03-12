@@ -89,7 +89,7 @@ def initReturns():
     return returns
 
 
-def play_onPolicy_SARSA(env, Q, bins, eps, display):
+def play_offPolicy_ExptedSARSA(env,Q, bins,eps,display):
     obs = env.reset()
     state = get_state_as_string(assign_bins(obs, bins))
     # prev_screen = env.render(mode='rgb_array')
@@ -111,20 +111,16 @@ def play_onPolicy_SARSA(env, Q, bins, eps, display):
 
         if done == True:
             if count < 200:
-                reward = 1000
-                complete = 1
-
+                reward = -1000
+                complete += 1
         new_state = get_state_as_string(assign_bins(obs, bins))
-        if np.random.uniform() < eps:
-            new_action = env.action_space.sample()  # epsilon greedy
-        else:
-            new_action = max_dict(Q[state])[0]
-
-        Q[state][action] += ALPHA * (reward + GAMMA * Q[new_state][new_action] - Q[state][action])
+        max_action,max_q = max_dict(Q[new_state])
+        Q[state][action] += ALPHA * (reward + GAMMA * max_q - Q[state][action])
         state = new_state
         if done == True:
             break;
     return complete
+
 
 
 def evaluate_and_plot_parameters(cumulative_completion, training_episodes):
@@ -144,27 +140,27 @@ if __name__ == '__main__':
     bins = create_bins()
     Q = initQ()
 
-    onPolicy_SARSA_completeList = []
+    offPolicy_SARSA_completeList = []
     completed = 0
     eps = 0.05
     mem = 0
     training_episodes = 5000
     for i in range(training_episodes):
-        complete = play_onPolicy_SARSA(env, Q, bins, eps, False)
+        complete = play_offPolicy_ExptedSARSA(env, Q, bins, eps, False)
         if i % 100 == 0 and i != 0:
             print("i = " + str(i) + ", and completed over past 100 episode " + str(completed - mem))
             mem = completed
 
         completed += complete
-        onPolicy_SARSA_completeList.append(completed)
+        offPolicy_SARSA_completeList.append(completed)
 
-    evaluate_and_plot_parameters(onPolicy_SARSA_completeList, training_episodes)
+    evaluate_and_plot_parameters(offPolicy_SARSA_completeList, training_episodes)
     plt.show()
 
     eps = 0
     avg = 0
     for i in range(100):
-        complete = play_onPolicy_SARSA(env, Q, bins, eps, False)
+        complete = play_offPolicy_ExptedSARSA(env, Q, bins, eps, False)
         avg += complete
     print(avg / 100)
     # play(env, Q, bins,eps, True)
