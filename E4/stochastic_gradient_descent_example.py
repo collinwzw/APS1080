@@ -33,20 +33,22 @@ p_outputSpace = 1
 inputs=keras.Input(shape=(p_inputSpace,),name="states")
 x1 = keras.layers.Dense(64,activation="relu")(inputs)
 x2 = keras.layers.Dense(64,activation="relu")(x1)
-outputs = keras.layers.Dense(p_outputSpace, name="actions")(x2)
+x3 = keras.layers.Dense(64,activation="relu")(x2)
+x4 = keras.layers.Dense(64,activation="relu")(x3)
+outputs = keras.layers.Dense(p_outputSpace, name="actions")(x4)
 model = keras.Model(inputs=inputs, outputs=outputs)
 
 # plot it
-keras.utils.plot_model(
-    model,
-    #to_file="model.png",
-    show_shapes=True,
-    show_dtype=True,
-    show_layer_names=True,
-    rankdir="TB", #TB: vertical; LR: hor
-    expand_nested=True,
-    dpi=96,
-)
+# keras.utils.plot_model(
+#     model,
+#     #to_file="model.png",
+#     show_shapes=True,
+#     show_dtype=True,
+#     show_layer_names=True,
+#     rankdir="TB", #TB: vertical; LR: hor
+#     expand_nested=True,
+#     dpi=96,
+# )
 
 # optimizer and per-prediction error
 alpha = 0.001
